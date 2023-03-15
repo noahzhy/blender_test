@@ -11,29 +11,19 @@ armature = bpy.data.objects["metarig"]
 camera = bpy.data.objects["Camera"]
 
 # function to get pose of bone named via given name
-def get_bone_pose(armature, bone_name):
+def get_bone_pose(armature, bone_name=None):
+    if bone_name is None: bone_name = "Head"
     # get bone
     bone = armature.pose.bones[bone_name]
-    # get location and rotation
-    location = bone.location
-    rotation = bone.rotation_quaternion
-    # convert to dregee of pitch, yaw, roll
-    pitch, yaw, roll = rotation.to_euler()
-    # convert to relative angle to camera
-    pitch = pitch - camera.rotation_euler[0]
-    yaw = yaw - camera.rotation_euler[1]
-    roll = roll - camera.rotation_euler[2]
-
+    rotation = armature.matrix_world @ bone.matrix
+    # convert to euler
+    pitch, roll, yaw = rotation.to_euler()
     # convert to degree
-    pitch = pitch * 180 / math.pi
-    yaw = yaw * 180 / math.pi
-    roll = roll * 180 / math.pi
-
-    # add 90 degree to pitch
-    pitch += 90
-
-    # return pitch, yaw, roll
-    return pitch, yaw, roll
+    pitch = math.degrees(pitch - camera.rotation_euler[0])
+    yaw = math.degrees(yaw - camera.rotation_euler[1])
+    roll = math.degrees(roll - camera.rotation_euler[2])
+    # keep 6 decimal places
+    return round(pitch, 4), round(yaw, 4), round(roll, 4)
 
 
 if __name__ == "__main__":

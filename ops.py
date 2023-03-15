@@ -11,8 +11,6 @@ from bpy_extras import view3d_utils
 from bpy_extras.object_utils import world_to_camera_view
 
 
-
-
 # function to convert world space coordinates to camera space coordinates 2d
 # normalized return value is in range [0, 1] if clamp is True
 def to_camera_space_2d(vector, camera=None, clamp=True):
@@ -36,7 +34,6 @@ def get_bone_pos_global(armature, bone_name):
     bone = armature.pose.bones[bone_name]
     bone_pos = armature.matrix_world @ bone.head
     return bone_pos
-
 
 
 if __name__ == "__main__":
