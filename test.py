@@ -2,7 +2,6 @@ import os
 import sys
 
 from mathutils import Vector
-from mathutils.bvhtree import BVHTree
 
 import bpy
 import bmesh
@@ -17,116 +16,36 @@ empty = bpy.data.objects["Empty"]
 cube = bpy.data.objects["Cube"]
 
 
-
-# 计算两个向量的点积，v1和v2都是3d向量
-def dot_product(v1, v2):
-    return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
-
-
-# function to calculate distance between two vectors
-def distance(v1, v2):
-    return (v1 - v2).length
+# function to get bones' length via given bone name
+def get_bone_length(armature, bone_name):
+    bone = armature.data.bones[bone_name]
+    return bone.length
 
 
-def select_face_loop(bm, face_index):
-    # Get the selected face
-    bm.faces.ensure_lookup_table()
-    selected_face = bm.faces[face_index]
-
-    # Find the face loop that includes the selected face
-    face_loop = []
-    current_face = selected_face
-    while True:
-        # Add the current face to the face loop
-        face_loop.append(current_face)
-
-        # Find the next face in the loop
-        next_face = None
-        for e in current_face.edges:
-            for f in e.link_faces:
-                if f != current_face and f.select:
-                    next_face = f
-                    break
-            if next_face:
-                break
-
-        # If no next face was found, we've reached the end of the loop
-        if not next_face:
-            break
-
-        # Update the current face to the next face
-        current_face = next_face
-
-    # Select the face loop
-    for f in face_loop:
-        f.select = True
-
-    return face_loop
-
-
-# function to get location of given face index
-def get_face_location(bm, face_index):
-    # ensure_lookup_table
-    bm.faces.ensure_lookup_table()
-    face = bm.faces[face_index]
-    face_loc = face.calc_center_bounds()
-
-    # select face loops via given face index
-
-    return face_loc
-
-
-# function to select face loops via given face index and bvhtree
-def select_face_loops(bvhtree, face_index):
-    print("select face loops")
-    # debug face index
-    print("face index: {}".format(face_index))
-
-
-def direction_hit(scene, dg, origin, direction):
-    normal_set = []
-    count = 0
-
-    is_hit, loc, normal, index, hit_obj, _ = scene.ray_cast(
-        dg, origin, direction,
-        distance=1000
-    )
+def direction_hit(scene, dg, loc, direction, dist=1):
+    normal_list = []
     e = 1e-6
 
-    while(is_hit):
-        dot_result = dot_product(normal, direction)
-        # convert to +- 1
-        dot_result = 1 if dot_result > 0 else -1
-        normal_set.append(dot_result)
-        count += 1
+    is_hit, loc, _, _, _, _ = scene.ray_cast(
+        dg, loc, direction, distance = dist
+    )
 
-        origin = loc + e * direction
-        is_hit, loc, normal, index, hit_obj, _ = scene.ray_cast(
-            dg, origin, direction,
-            distance=1000
+    if not is_hit:
+        return False
+
+    while(is_hit):
+        is_hit, loc, normal, _, _, _ = scene.ray_cast(
+            dg, loc + e * direction, direction, distance = dist
         )
-    print("hit normal set: {}".format(normal_set))
-    return count
+        normal_list.append(normal.dot(direction) >= 0)
+
+    return all(normal_list)
 
 
 # function to get bone position
 def get_bone_pos_global(armature, bone_name):
     bone = armature.pose.bones[bone_name]
-    bone_pos = armature.matrix_world @ bone.head
-    return bone_pos
-
-
-# description: ray cast from origin to direction
-def occlusion_ray(scene, dg, origin, direction, distance=1000, description="cam2bone"):
-    direction.normalized()
-    is_hit, loc, _, index, hit_obj, _ = scene.ray_cast(
-        dg, origin, direction,
-        distance=distance
-    )
-    if is_hit:
-        return is_hit, hit_obj.name_full, index, loc
-    else:
-        return is_hit, None, None
+    return armature.matrix_world @ bone.head
 
 
 def is_occluded(camera, boneVec, threshold=1):
@@ -134,25 +53,14 @@ def is_occluded(camera, boneVec, threshold=1):
     scene = bpy.context.scene
     dg = bpy.context.evaluated_depsgraph_get()
     # get vectors which define view frustum of camera
-    _, _, _, top_left = camera.data.view_frame(scene=scene)
+    top_left = camera.data.view_frame(scene=scene)[-1]
 
     # convert [0, 1] to [-.5, .5]
     x, y, _ = world_to_camera_view(scene, camera, boneVec)
-    pixel_vector = Vector((x-.5, y-.5, top_left[2]))
-    pixel_vector.rotate(camera.matrix_world.to_quaternion())
+    pix_vec = Vector((x-.5, y-.5, top_left[2]))
+    pix_vec.rotate(camera.matrix_world.to_quaternion())
 
-    # bone -> camera
-    b2c = occlusion_ray(scene, dg, boneVec, -pixel_vector, threshold, "bone2cam")
-    # camera -> bone
-    c2b = occlusion_ray(
-        scene, dg, camera.matrix_world.translation, pixel_vector, 100, "cam2bone")
-
-    print(direction_hit(scene, dg, boneVec, -pixel_vector))
-
-    if c2b[0] and b2c[0]:
-        return (c2b != b2c)
-    else:
-        return True
+    return direction_hit(scene, dg, boneVec, -pix_vec, dist=threshold)
 
 
 if __name__ == '__main__':
@@ -161,9 +69,8 @@ if __name__ == '__main__':
     b_name = "forearm.L"
     boneVec = get_bone_pos_global(armature, b_name)
 
+    b_len = get_bone_length(armature, b_name)
+    print("bone length: {}".format(b_len))
 
-
-    if is_occluded(camera, boneVec):
-        print("{} occluded".format(b_name))
-    else:
-        print("{} not occluded".format(b_name))
+    is_visible = is_occluded(camera, boneVec)
+    print("is visible: {}".format(is_visible))
