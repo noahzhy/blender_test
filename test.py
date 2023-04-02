@@ -9,11 +9,23 @@ import bpy_extras
 from bpy_extras.object_utils import world_to_camera_view
 
 
+# function to print timestamp
+def print_timestamp():
+    import datetime
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")
+
+
 armature = bpy.data.objects["metarig"]
 camera = bpy.data.objects["Camera"]
 empty = bpy.data.objects["Empty"]
 # get object which named cube
 cube = bpy.data.objects["Cube"]
+
+
+# function to get bone's parent name
+def get_bone_parent(armature, bone_name):
+    bone = armature.data.bones[bone_name]
+    return bone.parent.name if bone.parent else None
 
 
 # function to get bones' length via given bone name
@@ -22,24 +34,26 @@ def get_bone_length(armature, bone_name):
     return bone.length
 
 
-def direction_hit(scene, dg, loc, direction, dist=1):
-    normal_list = []
+def direction_hit(scene, loc, direction, dist=1):
+    init_status = False
+    dg = bpy.context.evaluated_depsgraph_get()
     e = 1e-6
 
     is_hit, loc, _, _, _, _ = scene.ray_cast(
-        dg, loc, direction, distance = dist
+        dg, loc, direction, distance=dist
     )
-
-    if not is_hit:
-        return False
+    # does not hit anything, be occluded by other bones
+    if not is_hit: return False
 
     while(is_hit):
+        loc += e * direction
         is_hit, loc, normal, _, _, _ = scene.ray_cast(
-            dg, loc + e * direction, direction, distance = dist
+            dg, loc, direction
         )
-        normal_list.append(normal.dot(direction) >= 0)
+        # hit normal direction is opposite to ray direction
+        if normal.dot(direction) < 0: return False
 
-    return all(normal_list)
+    return True
 
 
 # function to get bone position
@@ -48,10 +62,8 @@ def get_bone_pos_global(armature, bone_name):
     return armature.matrix_world @ bone.head
 
 
-def is_occluded(camera, boneVec, threshold=1):
-    # get current scene
+def is_visible(camera, boneVec, threshold=1):
     scene = bpy.context.scene
-    dg = bpy.context.evaluated_depsgraph_get()
     # get vectors which define view frustum of camera
     top_left = camera.data.view_frame(scene=scene)[-1]
 
@@ -60,17 +72,26 @@ def is_occluded(camera, boneVec, threshold=1):
     pix_vec = Vector((x-.5, y-.5, top_left[2]))
     pix_vec.rotate(camera.matrix_world.to_quaternion())
 
-    return direction_hit(scene, dg, boneVec, -pix_vec, dist=threshold)
+    return direction_hit(scene, boneVec, -pix_vec, dist=threshold)
 
 
 if __name__ == '__main__':
-    print("======================= occlusion test =======================")
+    print("\n====== occlusion test")
+    print("====== {}".format(print_timestamp()))
+
     # get bone position in world space
     b_name = "forearm.L"
-    boneVec = get_bone_pos_global(armature, b_name)
+    b_vec = get_bone_pos_global(armature, b_name)
+
+    # get bone parent name
+    b_parent = get_bone_parent(armature, b_name)
+    print("bone parent: {}".format(b_parent))
+    # get bone length
+    b_len = get_bone_length(armature, b_parent)
+    print("{} \tlength: {}".format(b_parent, b_len))
 
     b_len = get_bone_length(armature, b_name)
-    print("bone length: {}".format(b_len))
+    print("{} \tlength: {}".format(b_name, b_len))
 
-    is_visible = is_occluded(camera, boneVec)
+    is_visible = is_visible(camera, b_vec, threshold=1.6)
     print("is visible: {}".format(is_visible))
