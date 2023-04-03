@@ -43,9 +43,14 @@ def direction_hit(scene, loc, direction, dist=1):
         dg, loc, direction, distance=dist
     )
     # does not hit anything, be occluded by other bones
-    if not is_hit: return False
+    if not is_hit:
+        print("not hit")
+        return False
+
 
     while(is_hit):
+        print("hit: {}".format(loc))
+        empty.location = loc
         loc += e * direction
         is_hit, loc, normal, _, _, _ = scene.ray_cast(
             dg, loc, direction
@@ -93,5 +98,5 @@ if __name__ == '__main__':
     b_len = get_bone_length(armature, b_name)
     print("{} \tlength: {}".format(b_name, b_len))
 
-    is_visible = is_visible(camera, b_vec, threshold=1.6)
+    is_visible = is_visible(camera, b_vec, threshold=b_len)
     print("is visible: {}".format(is_visible))
