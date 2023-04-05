@@ -10,10 +10,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 
-# from pip._internal import main
-# main(['install', 'pillow'])
-# main(['install', '-r', 'requirements.txt'])
-
 # function to rectangle the numpy array via given value
 def rectangle(arr, value):
     target_arr = np.where(arr == value)
@@ -26,7 +22,7 @@ def rectangle(arr, value):
 # load image as numpy array
 def load_image(path):
     img = np.array(Image.open(path).convert('RGBA'))
-    # divide rgb and alpha
+    # rgb and alpha
     rgb, alpha = img[:, :, 0:3], img[:, :, 3]
     # convert to hsv
     hsv = matplotlib.colors.rgb_to_hsv(rgb)[:,:,0]
@@ -38,8 +34,7 @@ def load_image(path):
 
 
 if __name__ == "__main__":
-    # path = "body_20230304172018_581351150011.png"
-    path = "0001.png"
+    path = "data/body_0001.png"
     img = load_image(path)
 
     min_x, max_x, min_y, max_y = rectangle(img, 1)
@@ -48,8 +43,6 @@ if __name__ == "__main__":
     draw = ImageDraw.Draw(img)
     draw.rectangle((min_y, min_x, max_y, max_x), outline=(0, 255, 0, 255))
 
-    # img.show()
-    
     # show image
     plt.imshow(img, cmap='jet')
     plt.show()
