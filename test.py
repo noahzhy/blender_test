@@ -47,7 +47,6 @@ def direction_hit(scene, loc, direction, dist=1):
         print("not hit")
         return False
 
-
     while(is_hit):
         print("hit: {}".format(loc))
         empty.location = loc
