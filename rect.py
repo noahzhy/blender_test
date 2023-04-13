@@ -34,11 +34,21 @@ def load_image(path):
 
 
 if __name__ == "__main__":
-    path = "data/body_0001.png"
-    img = load_image(path)
+    # load images
+    imgs = glob.glob("E:/projects/HCD_AI_blender_ver/data/body_*.png")
+    # get last image via created time
+    path = max(imgs, key=os.path.getctime)
 
-    min_x, max_x, min_y, max_y = rectangle(img, 1)
-    # draw box via PIL
+    # # # open image
+    # img = Image.open(path)
+    # # show it in matplotlib
+    # plt.imshow(img)
+    # plt.show()
+
+    img = load_image(path)
+    print(path)
+    min_x, max_x, min_y, max_y = rectangle(img, 2)
+    # # draw box via PIL
     img = Image.open(path).convert('RGBA')
     draw = ImageDraw.Draw(img)
     draw.rectangle((min_y, min_x, max_y, max_x), outline=(0, 255, 0, 255))
